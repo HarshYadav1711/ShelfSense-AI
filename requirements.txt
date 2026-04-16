@@ -1,12 +1,21 @@
-Django
-djangorestframework
-django-cors-headers
-drf-spectacular
-python-dotenv
-PyMySQL
-cryptography
-chromadb
-selenium
-ollama
-sentence-transformers
-requests
+# --- Django REST API ---
+Django==5.1.4
+djangorestframework==3.16.1
+django-cors-headers==4.9.0
+drf-spectacular==0.29.0
+
+# --- Configuration & environment ---
+python-dotenv==1.2.2
+
+# --- MySQL (PyMySQL + TLS for caching_sha2_password) ---
+PyMySQL==1.1.0
+cryptography==41.0.7
+
+# --- RAG: vector store, embeddings, Ollama HTTP client ---
+chromadb==1.5.7
+sentence-transformers==5.2.2
+ollama==0.6.1
+
+# --- HTTP & ingestion (Selenium scraper) ---
+requests==2.31.0
+selenium==4.40.0
