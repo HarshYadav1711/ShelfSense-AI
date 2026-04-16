@@ -1,33 +1,54 @@
-# ShelfSense AI Monorepo Scaffold
+# ShelfSense AI
 
-Production-minded scaffold for a full-stack internship assessment using free, local-first tools.
+ShelfSense AI is a full-stack book intelligence tool built for the internship assessment. It ingests public book metadata with Selenium, stores normalized records in MySQL, generates AI insights locally, and answers grounded questions through a RAG pipeline.
 
-## Stack
+The implementation is intentionally product-oriented: clear module boundaries, versioned API routes, deterministic AI flows, and UI states that support internal review workflows.
 
-- Backend: Django + Django REST Framework
-- Frontend: Next.js (TypeScript) + Tailwind CSS
-- Metadata database: MySQL
-- Vector database: ChromaDB (local)
-- Scraping: Selenium
-- Local LLM runtime: Ollama or LM Studio
+## Free and Local-Only Tooling
+
+This project uses only free, locally runnable components:
+- Django REST Framework + Next.js + Tailwind
+- MySQL for metadata
+- ChromaDB for local vector search
+- Sentence Transformers for embeddings
+- Ollama or LM Studio for local generation
+- Selenium against a public source (`books.toscrape.com`)
+
+No paid APIs, no billing dependencies, and no API keys are required.
+
+## Why This Stack
+
+- **Django REST Framework:** fast delivery of stable, versioned JSON APIs with clean serializers and validation.
+- **Next.js + Tailwind:** rapid internal-product UI development with strong TypeScript ergonomics.
+- **MySQL + ChromaDB:** separates transactional metadata from semantic retrieval concerns.
+- **Sentence Transformers + Local LLM:** practical RAG quality with predictable local execution costs.
+- **Selenium:** reliable assignment-compliant automation for repeatable ingestion.
+
+## Architecture
+
+See `docs/architecture.md` for a concise architecture view. High-level flow:
+1. Selenium scraper fetches a bounded multi-page batch.
+2. Ingestion normalizes metadata and writes `Book`, `BookChunk`, and logs.
+3. Insights layer writes summary/genre/recommendation/sentiment.
+4. RAG layer embeds chunks into Chroma and serves grounded Q&A with citations.
+5. Frontend exposes dashboard, detail, and Q&A views.
 
 ## Repository Layout
 
-- `backend/` Django API service
-- `frontend/` Next.js web app
-- `scraper/` Selenium ingestion jobs
-- `samples/` sample raw and processed data
-- `docs/` architecture and operational notes
-- `requirements.txt` Python dependencies for backend and data pipeline tooling
+- `backend/` Django API, ingestion, insights, and RAG services
+- `frontend/` Next.js client app
+- `scraper/` Selenium source client
+- `samples/` sample input/output, request/response payloads
+- `docs/` architecture and screenshot assets
+- `requirements.txt` Python dependencies
 
-## Quick Start
+## Setup
 
-## 1) Backend
+### Backend
 
 ```bash
 cd backend
 python -m venv .venv
-# Windows PowerShell
 .venv\Scripts\Activate.ps1
 pip install -r ..\requirements.txt
 copy .env.example .env
@@ -35,13 +56,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Backend URLs:
-- Health check: `http://localhost:8000/health/`
-- API root prefix: `http://localhost:8000/api/v1/`
-- API schema: `http://localhost:8000/api/schema/`
-- API docs: `http://localhost:8000/api/docs/`
-
-## 2) Frontend
+### Frontend
 
 ```bash
 cd frontend
@@ -50,61 +65,58 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:3000`.
-
-## API Scaffold Endpoints
-
-- `GET /api/v1/books/status/`
-- `GET /api/v1/ingestion/status/`
-- `GET /api/v1/insights/status/`
-- `GET /api/v1/rag/status/`
-
-These status endpoints keep the scaffold clean while preparing module boundaries for feature development.
-
-## Product API Surface
-
-- `GET /api/v1/books/` list books (supports `search`, `min_rating`, pagination)
-- `GET /api/v1/books/{id}/` full book details with insights
-- `GET /api/v1/books/{id}/related/` related book recommendations
-- `POST /api/v1/books/upload-process/` scrape, ingest, generate insights, and index
-- `GET /api/v1/books/upload-process/{jobId}/` poll async pipeline status/progress
-- `POST /api/v1/rag/ask/` grounded Q&A with source citations
-- `GET /api/v1/rag/history/` recent question-answer history
-
-## AI Layer Endpoints
-
-- `POST /api/v1/insights/generate/` with `{ "limit": 10 }`
-- `POST /api/v1/rag/index/` with `{ "limit": 200 }`
-- `POST /api/v1/rag/ask/` with `{ "question": "...", "top_k": 4 }`
-
-## Chunking Strategy
-
-Book descriptions are chunked with overlapping windows:
-
-- chunk size: `80` words
-- overlap: `20` words
-
-This keeps local context continuity for retrieval while staying simple to explain during review.
-
-## Bonus Features (Stable)
-
-- RAG cache keyed by `(question, top_k, index_stamp)` to avoid repeated generation.
-- Retrieval result reuse and persisted chat history for recent Q&A sessions.
-- Lightweight background pipeline jobs (`queued -> ingestion -> insights -> indexing -> completed`) with progress percent.
-- Safe multi-page scraping (`max_pages`) for repeatable bulk ingestion.
-- Retry-safe ingestion and retrieval error handling with clear user-facing messages.
-
-## Sample Data Generation
-
-Run local sample generation for quick demo/testing:
+### Optional local sample data
 
 ```bash
 cd backend
 python manage.py generate_sample_books
 ```
 
-## Local-Only AI Setup
+## API Documentation
 
-- Embeddings: Sentence Transformers (`sentence-transformers/all-MiniLM-L6-v2`)
-- Vector DB: Chroma (`backend/.chroma`)
-- Generation: local Ollama or LM Studio (configured through `backend/.env`)
+- OpenAPI schema: `http://localhost:8000/api/schema/`
+- Swagger UI: `http://localhost:8000/api/docs/`
+
+Core endpoints:
+- `GET /api/v1/books/`
+- `GET /api/v1/books/{id}/`
+- `GET /api/v1/books/{id}/related/`
+- `POST /api/v1/books/upload-process/`
+- `GET /api/v1/books/upload-process/{jobId}/`
+- `POST /api/v1/rag/ask/`
+- `GET /api/v1/rag/history/`
+
+Sample requests and responses are included in `samples/api/`.
+
+## Sample Questions and Answers
+
+Example questions (grounded against indexed book chunks):
+- "Which books are strongly recommended and why?"
+- "What themes appear in books with high ratings?"
+- "Show books related to metadata pipelines."
+
+Representative answer and citations are included in:
+- `samples/api/responses/rag_ask_success.json`
+
+## UI Screenshots (Submission)
+
+Add 3 to 4 screenshots in `docs/screenshots/` and keep filenames:
+- `dashboard-books.png`
+- `book-detail.png`
+- `qa-with-citations.png`
+- `pipeline-progress.png`
+
+Then reference them here:
+![Dashboard](docs/screenshots/dashboard-books.png)
+![Book Detail](docs/screenshots/book-detail.png)
+![Q&A with Citations](docs/screenshots/qa-with-citations.png)
+![Pipeline Progress](docs/screenshots/pipeline-progress.png)
+
+## Bonus Features Implemented
+
+- RAG response cache keyed by question + retrieval parameters + index stamp
+- Persisted Q&A chat history endpoint
+- Async background pipeline job with progress stages
+- Multi-page scraping with bounded `max_pages`
+- Overlap chunking (`80` words, `20` overlap)
+- Retry-safe ingestion and user-safe API error payloads

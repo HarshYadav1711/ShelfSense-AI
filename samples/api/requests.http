@@ -1,0 +1,35 @@
+### Health
+GET http://localhost:8000/health/
+
+### List books
+GET http://localhost:8000/api/v1/books/?search=metadata&page=1&page_size=10
+
+### Book detail
+GET http://localhost:8000/api/v1/books/1/
+
+### Related books
+GET http://localhost:8000/api/v1/books/1/related/
+
+### Launch ingestion + insights + index pipeline
+POST http://localhost:8000/api/v1/books/upload-process/
+Content-Type: application/json
+
+{
+  "limit": 10,
+  "max_pages": 3
+}
+
+### Poll pipeline status
+GET http://localhost:8000/api/v1/books/upload-process/1/
+
+### Ask RAG
+POST http://localhost:8000/api/v1/rag/ask/
+Content-Type: application/json
+
+{
+  "question": "Which books are strongly recommended and why?",
+  "top_k": 4
+}
+
+### Get recent chat history
+GET http://localhost:8000/api/v1/rag/history/?page=1&page_size=5

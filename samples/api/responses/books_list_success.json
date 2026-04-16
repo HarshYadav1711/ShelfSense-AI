@@ -1,0 +1,16 @@
+{
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "title": "Practical Retrieval Systems",
+      "author": "Ana Brooks",
+      "rating": 4.4,
+      "description": "A practical guide to building grounded retrieval systems with clear evaluation patterns.",
+      "book_url": "https://example.local/books/sample-001",
+      "updated_at": "2026-04-16T20:41:32.294882Z"
+    }
+  ]
+}

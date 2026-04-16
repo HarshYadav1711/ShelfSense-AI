@@ -1,0 +1,25 @@
+{
+  "id": 1,
+  "title": "Practical Retrieval Systems",
+  "author": "Ana Brooks",
+  "rating": 4.4,
+  "reviews_count": 120,
+  "description": "A practical guide to building grounded retrieval systems with clear evaluation patterns.",
+  "book_url": "https://example.local/books/sample-001",
+  "ingestion_status": "completed",
+  "last_ingested_at": "2026-04-16T20:41:32.294882Z",
+  "insights": [
+    {
+      "insight_type": "summary",
+      "content": "Practical overview of retrieval engineering and grounded answer quality controls.",
+      "updated_at": "2026-04-16T20:42:20.511293Z"
+    },
+    {
+      "insight_type": "recommendation",
+      "content": "Strongly recommended for most readers.",
+      "updated_at": "2026-04-16T20:42:20.511293Z"
+    }
+  ],
+  "created_at": "2026-04-16T20:41:32.294882Z",
+  "updated_at": "2026-04-16T20:42:20.511293Z"
+}

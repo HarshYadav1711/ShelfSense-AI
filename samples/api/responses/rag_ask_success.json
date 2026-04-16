@@ -1,0 +1,30 @@
+{
+  "answer": "Practical Retrieval Systems and Metadata at Scale are strongly recommended because their summaries and recommendation insights emphasize robust ingestion and grounded retrieval quality.",
+  "sources": [
+    {
+      "book_id": 1,
+      "book_title": "Practical Retrieval Systems",
+      "book_url": "https://example.local/books/sample-001",
+      "chunk_index": 0,
+      "similarity_distance": 0.1123
+    },
+    {
+      "book_id": 2,
+      "book_title": "Metadata at Scale",
+      "book_url": "https://example.local/books/sample-002",
+      "chunk_index": 0,
+      "similarity_distance": 0.1541
+    }
+  ],
+  "related_books": [
+    "Metadata at Scale",
+    "Practical Retrieval Systems"
+  ],
+  "metadata": {
+    "top_k": 4,
+    "retrieved_chunks": 2,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "collection": "shelfsense-book-chunks",
+    "cache_hit": false
+  }
+}

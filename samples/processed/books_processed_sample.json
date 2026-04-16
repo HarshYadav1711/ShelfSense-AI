@@ -1,0 +1,24 @@
+[
+  {
+    "source_site": "books.toscrape.com",
+    "source_id": "a897fe39b1053632",
+    "title": "A Light in the Attic",
+    "author": "",
+    "rating": 3.0,
+    "reviews_count": null,
+    "description": "Poetry collection covering family moments, humor, and imaginative scenes.",
+    "book_url": "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html",
+    "ingestion_status": "completed"
+  },
+  {
+    "source_site": "books.toscrape.com",
+    "source_id": "90fa61229261140a",
+    "title": "Tipping the Velvet",
+    "author": "",
+    "rating": 1.0,
+    "reviews_count": null,
+    "description": "Historical fiction with relationship-driven storytelling and period details.",
+    "book_url": "https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html",
+    "ingestion_status": "completed"
+  }
+]
