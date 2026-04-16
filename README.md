@@ -1,122 +1,269 @@
 # ShelfSense AI
 
-ShelfSense AI is a full-stack book intelligence tool built for the internship assessment. It ingests public book metadata with Selenium, stores normalized records in MySQL, generates AI insights locally, and answers grounded questions through a RAG pipeline.
+### Intelligent Book Insights & Question-Answering Platform
 
-The implementation is intentionally product-oriented: clear module boundaries, versioned API routes, deterministic AI flows, and UI states that support internal review workflows.
+ShelfSense AI is a full-stack **Document Intelligence Platform** that transforms raw book data into meaningful insights using **AI and Retrieval-Augmented Generation (RAG)**.
 
-## Free and Local-Only Tooling
+Built as part of the Ergosphere Solutions Internship Assignment, this project demonstrates **end-to-end system design**, combining **data ingestion, backend engineering, AI pipelines, and user-facing interfaces** into a cohesive product.
 
-This project uses only free, locally runnable components:
-- Django REST Framework + Next.js + Tailwind
-- MySQL for metadata
-- ChromaDB for local vector search
-- Sentence Transformers for embeddings
-- Ollama or LM Studio for local generation
-- Selenium against a public source (`books.toscrape.com`)
+---
 
-No paid APIs, no billing dependencies, and no API keys are required.
+## Key Features
 
-## Why This Stack
+* Automated book data collection using Selenium
+* AI-generated insights (summary, genre, recommendations)
+* RAG-based question answering over book content
+* Fast semantic search using vector embeddings
+* RESTful APIs built with Django REST Framework
+* Clean and responsive UI with Next.js + Tailwind CSS
+* Modular and scalable architecture
 
-- **Django REST Framework:** fast delivery of stable, versioned JSON APIs with clean serializers and validation.
-- **Next.js + Tailwind:** rapid internal-product UI development with strong TypeScript ergonomics.
-- **MySQL + ChromaDB:** separates transactional metadata from semantic retrieval concerns.
-- **Sentence Transformers + Local LLM:** practical RAG quality with predictable local execution costs.
-- **Selenium:** reliable assignment-compliant automation for repeatable ingestion.
+---
 
-## Architecture
+## System Architecture
 
-See `docs/architecture.md` for a concise architecture view. High-level flow:
-1. Selenium scraper fetches a bounded multi-page batch.
-2. Ingestion normalizes metadata and writes `Book`, `BookChunk`, and logs.
-3. Insights layer writes summary/genre/recommendation/sentiment.
-4. RAG layer embeds chunks into Chroma and serves grounded Q&A with citations.
-5. Frontend exposes dashboard, detail, and Q&A views.
+```
+[Selenium Scraper] → [Django Backend] → [MySQL]
+                              ↓
+                     [Chunking + Embeddings]
+                              ↓
+                        [ChromaDB]
+                              ↓
+                       [RAG Pipeline]
+                              ↓
+                        [REST APIs]
+                              ↓
+                 [Next.js Frontend]
+```
 
-## Repository Layout
+---
 
-- `backend/` Django API, ingestion, insights, and RAG services
-- `frontend/` Next.js client app
-- `scraper/` Selenium source client
-- `samples/` sample input/output, request/response payloads
-- `docs/` architecture and screenshot assets
-- `requirements.txt` Python dependencies
+## Tech Stack
 
-## Setup
+| Layer      | Technology                                       |
+| ---------- | ------------------------------------------------ |
+| Backend    | Django REST Framework                            |
+| Frontend   | Next.js, Tailwind CSS                            |
+| Database   | MySQL                                            |
+| Vector DB  | ChromaDB                                         |
+| AI Models  | Sentence Transformers + LLM (LM Studio / OpenAI) |
+| Automation | Selenium                                         |
 
-### Backend
+---
+
+## Core Functionality
+
+### 1. Data Ingestion
+
+* Scrapes book data from web sources using Selenium
+* Extracts:
+
+  * Title
+  * Author
+  * Rating
+  * Description
+  * Book URL
+* Stores structured metadata in MySQL
+
+---
+
+### 2. AI Insight Generation
+
+For each book, the system generates:
+
+* **Summary** → concise 2–3 line overview
+* **Genre Classification** → predicted category
+* **Recommendations** → “If you like X, you’ll like Y”
+
+These insights are generated using LLM prompts and stored for fast retrieval.
+
+---
+
+### 3. RAG Pipeline (Core Highlight)
+
+The system implements a complete **Retrieval-Augmented Generation pipeline**:
+
+1. Book descriptions are split into chunks
+2. Chunks are converted into embeddings
+3. Stored in ChromaDB (vector database)
+4. User query is embedded
+5. Top-k similar chunks retrieved
+6. Context constructed
+7. LLM generates answer with **source references**
+
+✔ Ensures accurate, context-aware answers
+✔ Reduces hallucination
+✔ Provides explainability via citations
+
+---
+
+### 4. REST API Endpoints
+
+#### GET APIs
+
+```
+GET /api/books/                      → List all books
+GET /api/books/<id>/                → Book details
+GET /api/books/<id>/recommendations/ → Related books
+```
+
+#### POST APIs
+
+```
+POST /api/books/upload/ → Scrape & process books
+POST /api/ask/          → Ask questions (RAG)
+```
+
+---
+
+## Frontend Overview
+
+### Dashboard
+
+* Displays all books in a clean card layout
+* Shows title, author, rating, description
+
+### Book Detail Page
+
+* Full book metadata
+* AI-generated insights
+
+### Q&A Interface
+
+* Ask questions about books
+* Displays answers with **source citations**
+
+---
+
+## Optimization & Bonus Features
+
+* ✅ Response caching (avoids repeated AI calls)
+* ✅ Overlapping chunk strategy for better context
+* ✅ Loading states for improved UX
+* ✅ Clean modular backend architecture
+* ✅ Error handling in scraping pipeline
+
+---
+
+## 📸 Screenshots
+
+> (Add 3–4 screenshots here)
+
+* Dashboard View
+* Book Detail Page
+* Q&A Interface
+* API Response Example
+
+---
+
+## Setup Instructions
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/your-username/shelfsense-ai.git
+cd shelfsense-ai
+```
+
+### 2. Backend Setup
 
 ```bash
 cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r ..\requirements.txt
-copy .env.example .env
+pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
 
-### Frontend
+### 3. Frontend Setup
 
 ```bash
 cd frontend
-copy .env.example .env.local
 npm install
 npm run dev
 ```
 
-### Optional local sample data
+### 4. Run Scraper
 
 ```bash
-cd backend
-python manage.py generate_sample_books
+cd scraper
+python scraper.py
 ```
 
-## API Documentation
+---
 
-- OpenAPI schema: `http://localhost:8000/api/schema/`
-- Swagger UI: `http://localhost:8000/api/docs/`
+## Sample Questions
 
-Core endpoints:
-- `GET /api/v1/books/`
-- `GET /api/v1/books/{id}/`
-- `GET /api/v1/books/{id}/related/`
-- `POST /api/v1/books/upload-process/`
-- `GET /api/v1/books/upload-process/{jobId}/`
-- `POST /api/v1/rag/ask/`
-- `GET /api/v1/rag/history/`
+Try asking:
 
-Sample requests and responses are included in `samples/api/`.
+* "Summarize this book"
+* "What genre is this book?"
+* "Recommend similar books"
+* "What is this book about?"
 
-## Sample Questions and Answers
+---
 
-Example questions (grounded against indexed book chunks):
-- "Which books are strongly recommended and why?"
-- "What themes appear in books with high ratings?"
-- "Show books related to metadata pipelines."
+## Sample Output
 
-Representative answer and citations are included in:
-- `samples/api/responses/rag_ask_success.json`
+```json
+{
+  "answer": "This book explores...",
+  "sources": ["Book Title A", "Book Title B"]
+}
+```
 
-## UI Screenshots (Submission)
+---
 
-Add 3 to 4 screenshots in `docs/screenshots/` and keep filenames:
-- `dashboard-books.png`
-- `book-detail.png`
-- `qa-with-citations.png`
-- `pipeline-progress.png`
+## Design Decisions
 
-Then reference them here:
-![Dashboard](docs/screenshots/dashboard-books.png)
-![Book Detail](docs/screenshots/book-detail.png)
-![Q&A with Citations](docs/screenshots/qa-with-citations.png)
-![Pipeline Progress](docs/screenshots/pipeline-progress.png)
+* **Django REST** chosen for rapid API development and scalability
+* **ChromaDB** used for lightweight vector search
+* **Sentence Transformers** for efficient embeddings
+* **Next.js** for fast and responsive UI
+* **RAG architecture** to ensure factual and explainable answers
 
-## Bonus Features Implemented
+---
 
-- RAG response cache keyed by question + retrieval parameters + index stamp
-- Persisted Q&A chat history endpoint
-- Async background pipeline job with progress stages
-- Multi-page scraping with bounded `max_pages`
-- Overlap chunking (`80` words, `20` overlap)
-- Retry-safe ingestion and user-safe API error payloads
+## Trade-offs
+
+* Used lightweight models for faster inference over heavy models
+* Focused on clarity and modularity instead of over-engineering
+* Prioritized working RAG pipeline over complex UI features
+
+---
+
+## Project Structure
+
+```
+ShelfSense-AI/
+├── backend/
+├── frontend/
+├── scraper/
+├── vector_store/
+├── samples/
+├── README.md
+├── requirements.txt
+```
+
+---
+
+## What This Project Demonstrates
+
+* End-to-end full-stack development
+* Practical AI integration (not just theory)
+* Real-world RAG implementation
+* Clean system design & modular code
+* Problem-solving with performance considerations
+
+---
+
+## Final Note
+
+This project was built with a focus on **clarity, functionality, and real-world applicability** rather than unnecessary complexity.
+
+The goal was to design a system that is:
+
+* Easy to understand
+* Efficient to run
+* Practical to scale
+
+---

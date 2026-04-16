@@ -110,9 +110,11 @@ export default function BooksPage() {
             </p>
             <p>{job.progress_percent}%</p>
           </div>
-          <div className="mt-2 h-2 w-full rounded-full bg-zinc-200">
-            <div className="h-2 rounded-full bg-zinc-900 transition-all" style={{ width: `${job.progress_percent}%` }} />
-          </div>
+          <progress
+            className="mt-2 h-2 w-full overflow-hidden rounded-full [&::-moz-progress-bar]:bg-zinc-900 [&::-webkit-progress-bar]:bg-zinc-200 [&::-webkit-progress-value]:bg-zinc-900"
+            max={100}
+            value={job.progress_percent}
+          />
           {job.error_message ? <p className="mt-2 text-sm text-red-700">{job.error_message}</p> : null}
         </section>
       ) : null}
