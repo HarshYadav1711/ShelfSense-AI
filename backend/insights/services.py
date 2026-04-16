@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any
 
 from django.db import transaction
@@ -9,6 +10,8 @@ from django.db import transaction
 from books.models import Book, BookInsight, IngestionStatus
 
 from .llm import LocalLLMClient, LocalLLMError
+
+_LEGACY_SUMMARY_FP = re.compile(r"^\[fp:([a-f0-9]+)\] (.*)$", re.DOTALL)
 
 
 INSIGHT_TYPES = ("summary", "genre", "recommendation", "sentiment")
@@ -99,24 +102,51 @@ def _book_fingerprint(book: Book) -> str:
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
+def _split_legacy_fingerprint_content(content: str) -> tuple[str | None, str]:
+    """Parse legacy ``[fp:hex] ...`` summary prefix; return (fingerprint or None, body)."""
+    m = _LEGACY_SUMMARY_FP.match(content or "")
+    if not m:
+        return None, content or ""
+    return m.group(1), m.group(2)
+
+
+def _summary_fingerprint_for_cache(insight: BookInsight) -> str | None:
+    """Fingerprint used for cache invalidation: metadata first, else legacy content prefix."""
+    md = insight.metadata or {}
+    fp = md.get("fingerprint")
+    if isinstance(fp, str) and len(fp) == 64:
+        return fp
+    legacy_fp, _ = _split_legacy_fingerprint_content(insight.content or "")
+    return legacy_fp
+
+
+def display_insight_content(insight: BookInsight) -> str:
+    """User-facing insight text (strips legacy embedded fingerprint from summary if present)."""
+    if insight.insight_type != "summary":
+        return insight.content or ""
+    legacy_fp, body = _split_legacy_fingerprint_content(insight.content or "")
+    if legacy_fp is not None:
+        return body
+    return insight.content or ""
+
+
 def _is_insight_cache_fresh(book: Book) -> bool:
     existing = {insight.insight_type: insight for insight in book.insights.all()}
     if not all(insight_type in existing for insight_type in ("summary", "genre", "recommendation")):
         return False
     expected = _book_fingerprint(book)
-    current = existing["summary"].content
-    return current.startswith(f"[fp:{expected}] ")
+    current = _summary_fingerprint_for_cache(existing["summary"])
+    return current == expected
 
 
 @transaction.atomic
 def _store_insights(book: Book, insight_payload: dict[str, Any]) -> None:
     fingerprint = _book_fingerprint(book)
+    meta = {"fingerprint": fingerprint}
     for insight_type in INSIGHT_TYPES:
         content = str(insight_payload.get(insight_type) or "").strip()
         if not content:
             continue
-        if insight_type == "summary":
-            content = f"[fp:{fingerprint}] {content}"
 
         BookInsight.objects.update_or_create(
             book=book,
@@ -124,5 +154,6 @@ def _store_insights(book: Book, insight_payload: dict[str, Any]) -> None:
             defaults={
                 "content": content,
                 "ingestion_status": IngestionStatus.COMPLETED,
+                "metadata": meta,
             },
         )

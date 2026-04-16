@@ -27,17 +27,21 @@ class Command(BaseCommand):
         poll_interval: float = options["poll_interval"]
         self.stdout.write(self.style.NOTICE("Pipeline worker started. Press Ctrl+C to stop."))
 
-        while True:
-            job = self._claim_next_job()
-            if job is None:
-                time.sleep(poll_interval)
-                continue
+        try:
+            while True:
+                job = self._claim_next_job()
+                if job is None:
+                    time.sleep(poll_interval)
+                    continue
 
-            logger.info("pipeline.worker.claimed job_id=%s status=%s stage=%s", job.id, job.status, job.stage)
-            try:
-                run_pipeline_job_once(job.id)
-            except Exception:
-                logger.exception("pipeline.worker.unhandled job_id=%s", job.id)
+                logger.info("pipeline.worker.claimed job_id=%s status=%s stage=%s", job.id, job.status, job.stage)
+                try:
+                    run_pipeline_job_once(job.id)
+                except Exception:
+                    logger.exception("pipeline.worker.unhandled job_id=%s", job.id)
+        except KeyboardInterrupt:
+            self.stdout.write("")
+            self.stdout.write(self.style.WARNING("Pipeline worker stopped (Ctrl+C)."))
 
     def _claim_next_job(self) -> PipelineJob | None:
         """

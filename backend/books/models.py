@@ -64,6 +64,7 @@ class BookInsight(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="insights")
     insight_type = models.CharField(max_length=64)
     content = models.TextField()
+    metadata = models.JSONField(default=dict, blank=True)
     ingestion_status = models.CharField(
         max_length=16,
         choices=IngestionStatus.choices,

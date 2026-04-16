@@ -1,12 +1,19 @@
 from rest_framework import serializers
 
+from insights.services import display_insight_content
+
 from .models import Book, BookInsight
 
 
 class BookInsightSerializer(serializers.ModelSerializer):
+    content = serializers.SerializerMethodField()
+
     class Meta:
         model = BookInsight
         fields = ["insight_type", "content", "updated_at"]
+
+    def get_content(self, obj: BookInsight) -> str:
+        return display_insight_content(obj)
 
 
 class BookListSerializer(serializers.ModelSerializer):
