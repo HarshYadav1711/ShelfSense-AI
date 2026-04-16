@@ -308,6 +308,14 @@ Shape of `POST /api/v1/rag/ask/` (abbreviated):
 
 ---
 
+## Reliability considerations
+
+* **Pipeline heartbeats:** `PipelineJob` rows track **`last_heartbeat_at`** while a job is `processing`. The worker refreshes this on claim, on pipeline progress updates, and on a short interval during long steps. On startup, **`run_worker`** reclaims **stale** jobs (no recent heartbeat) by marking them **`failed`** with a clear error message so they are never left stuck in `processing` after a crash. Tune **`PIPELINE_STALE_HEARTBEAT_SECONDS`** and **`PIPELINE_HEARTBEAT_INTERVAL_SECONDS`** as needed.
+* **Idempotent ingestion:** Books are upserted by **`(source_site, source_id)`**; chunk content is replaced per run with stable hashing in metadata. Re-running ingestion or retrying after a failed pipeline does not create duplicate book rows for the same catalog entry.
+* **RAG response cache:** `POST /api/v1/rag/ask/` stores answers in **`RagQueryCache`** keyed by question, `top_k`, and an index stamp derived from chunk activity, so repeated questions avoid redundant embedding and LLM work when the index has not changed.
+
+---
+
 ## System limitations
 
 These boundaries are intentional for the assignment scope and keep expectations aligned with what the repository ships.
