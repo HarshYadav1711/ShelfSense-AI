@@ -205,16 +205,23 @@ def _build_context_items(query_result: dict[str, Any]) -> list[dict[str, Any]]:
 
 def related_book_ids_via_embeddings(book: Book, limit: int = 5) -> list[int] | None:
     """
-    Rank other books by vector similarity to this book's description using Chroma.
+    Recommend other books using the same embedding model and Chroma index as RAG.
 
-    Returns ordered book IDs (up to ``limit``), or ``None`` if embeddings should
-    not be used (empty description, errors, or no other books in the index).
+    Embeds this book's **description**, queries the vector store for similar **chunks**
+    (each chunk carries ``book_id`` in metadata), aggregates by book keeping the
+    best (lowest) distance per book, excludes the source book, and returns up to
+    ``limit`` distinct book IDs ordered by similarity.
+
+    Returns ``None`` if the description is empty, the index query fails, or no
+    other books appear in the results (caller should use non-embedding fallback).
     """
     text = (book.description or "").strip()
     if not text:
         return None
 
-    pool_chunks = min(80, max(limit * 4, 20))
+    # Request enough chunk neighbors that we can surface `limit` distinct books
+    # even when many top hits belong to the same titles.
+    pool_chunks = min(120, max(limit * 10, 40))
 
     try:
         model = _embedding_model()

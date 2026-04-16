@@ -86,6 +86,15 @@ def _genre_based_related_books(book: Book) -> list[Book]:
 
 
 class RelatedBooksView(APIView):
+    """
+    Related titles for a book.
+
+    Primary: embed the book's description and query Chroma for similar indexed
+    chunks; return up to five **distinct** other books ranked by best chunk
+    similarity. Fallback: genre-overlap heuristic (existing behavior) when
+    embeddings are unavailable or yield no candidates.
+    """
+
     def get(self, _request, book_id: int):
         try:
             book = Book.objects.get(id=book_id)
