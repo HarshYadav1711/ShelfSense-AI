@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 
+from django.utils import timezone
+
 from books.models import IngestionStatus
 from insights.services import generate_insights_for_books
 from rag.services import run_indexing
@@ -91,4 +93,15 @@ def _update_job(job: PipelineJob, stage: str, percent: int, status: str = Ingest
     job.status = status
     job.stage = stage
     job.progress_percent = percent
-    job.save(update_fields=["status", "stage", "progress_percent", "details", "error_message", "updated_at"])
+    job.last_heartbeat_at = timezone.now()
+    job.save(
+        update_fields=[
+            "status",
+            "stage",
+            "progress_percent",
+            "details",
+            "error_message",
+            "updated_at",
+            "last_heartbeat_at",
+        ]
+    )

@@ -178,6 +178,7 @@ def _set_job_progress(
         job.status = IngestionStatus.COMPLETED
     else:
         job.status = IngestionStatus.PROCESSING
+    job.last_heartbeat_at = timezone.now()
     job.save(
         update_fields=[
             "status",
@@ -186,5 +187,6 @@ def _set_job_progress(
             "error_message",
             "updated_at",
             "ingestion_run",
+            "last_heartbeat_at",
         ]
     )

@@ -63,6 +63,11 @@ class PipelineJob(models.Model):
     )
     details = models.JSONField(default=dict, blank=True)
     error_message = models.TextField(blank=True)
+    last_heartbeat_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last worker heartbeat while status is processing (crash detection).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

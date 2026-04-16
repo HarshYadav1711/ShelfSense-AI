@@ -37,6 +37,7 @@ class PipelineJobSerializer(serializers.ModelSerializer):
             "ingestion_run_id",
             "details",
             "error_message",
+            "last_heartbeat_at",
             "created_at",
             "updated_at",
         ]
