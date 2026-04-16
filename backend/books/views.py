@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from ingestion.pipeline import launch_pipeline_job
 from ingestion.models import PipelineJob
 from ingestion.serializers import PipelineJobSerializer
+from rag.services import related_book_ids_via_embeddings
 
 from .models import Book, BookInsight
 from .serializers import BookDetailSerializer, BookListSerializer, UploadProcessRequestSerializer
@@ -61,6 +62,29 @@ class BookDetailView(APIView):
         return Response(BookDetailSerializer(book).data)
 
 
+def _genre_based_related_books(book: Book) -> list[Book]:
+    """Legacy related list: genre substring overlap, then rating/title ordering."""
+    genre_insight = (
+        BookInsight.objects.filter(book=book, insight_type="genre").values_list("content", flat=True).first()
+    )
+
+    candidates = Book.objects.exclude(id=book.id)
+    if genre_insight:
+        related_ids = (
+            BookInsight.objects.filter(insight_type="genre", content__icontains=genre_insight[:30])
+            .exclude(book_id=book.id)
+            .values_list("book_id", flat=True)
+        )
+        candidates = candidates.filter(id__in=related_ids)
+
+    if book.rating is not None:
+        candidates = candidates.order_by("-rating", "title")
+    else:
+        candidates = candidates.order_by("title")
+
+    return list(candidates[:5])
+
+
 class RelatedBooksView(APIView):
     def get(self, _request, book_id: int):
         try:
@@ -68,25 +92,15 @@ class RelatedBooksView(APIView):
         except Book.DoesNotExist:
             return Response({"message": "Book not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        genre_insight = (
-            BookInsight.objects.filter(book=book, insight_type="genre").values_list("content", flat=True).first()
-        )
+        related_ids = related_book_ids_via_embeddings(book, limit=5)
+        if related_ids:
+            rows = {b.id: b for b in Book.objects.filter(id__in=related_ids)}
+            ordered = [rows[i] for i in related_ids if i in rows]
+            if ordered:
+                serializer = BookListSerializer(ordered, many=True)
+                return Response({"book_id": book.id, "results": serializer.data})
 
-        candidates = Book.objects.exclude(id=book.id)
-        if genre_insight:
-            related_ids = (
-                BookInsight.objects.filter(insight_type="genre", content__icontains=genre_insight[:30])
-                .exclude(book_id=book.id)
-                .values_list("book_id", flat=True)
-            )
-            candidates = candidates.filter(id__in=related_ids)
-
-        if book.rating is not None:
-            candidates = candidates.order_by("-rating", "title")
-        else:
-            candidates = candidates.order_by("title")
-
-        serializer = BookListSerializer(candidates[:5], many=True)
+        serializer = BookListSerializer(_genre_based_related_books(book), many=True)
         return Response({"book_id": book.id, "results": serializer.data})
 
 

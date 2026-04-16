@@ -9,7 +9,7 @@ from django.utils import timezone
 import chromadb
 from sentence_transformers import SentenceTransformer
 
-from books.models import BookChunk, IngestionStatus
+from books.models import Book, BookChunk, IngestionStatus
 from insights.llm import LocalLLMClient, LocalLLMError
 from .models import RagChatHistory, RagQueryCache
 
@@ -201,6 +201,58 @@ def _build_context_items(query_result: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return items
+
+
+def related_book_ids_via_embeddings(book: Book, limit: int = 5) -> list[int] | None:
+    """
+    Rank other books by vector similarity to this book's description using Chroma.
+
+    Returns ordered book IDs (up to ``limit``), or ``None`` if embeddings should
+    not be used (empty description, errors, or no other books in the index).
+    """
+    text = (book.description or "").strip()
+    if not text:
+        return None
+
+    pool_chunks = min(80, max(limit * 4, 20))
+
+    try:
+        model = _embedding_model()
+        collection = _collection()
+        query_embedding = _embedding_to_list(model.encode(text))
+        raw = collection.query(query_embeddings=[query_embedding], n_results=pool_chunks)
+    except Exception:
+        return None
+
+    metadatas = raw.get("metadatas", [[]])[0] if raw else []
+    distances = raw.get("distances", [[]])[0] if raw else []
+    best_distance: dict[int, float] = {}
+
+    for metadata, distance in zip(metadatas or [], distances or []):
+        if not metadata:
+            continue
+        bid = metadata.get("book_id")
+        if bid is None:
+            continue
+        try:
+            bid_int = int(bid)
+        except (TypeError, ValueError):
+            continue
+        if bid_int == book.id:
+            continue
+        try:
+            d = float(distance) if distance is not None else float("inf")
+        except (TypeError, ValueError):
+            d = float("inf")
+        prev = best_distance.get(bid_int)
+        if prev is None or d < prev:
+            best_distance[bid_int] = d
+
+    if not best_distance:
+        return None
+
+    ordered_ids = sorted(best_distance.keys(), key=lambda bid: best_distance[bid])
+    return ordered_ids[:limit]
 
 
 def _context_block(context_items: list[dict[str, Any]]) -> str:

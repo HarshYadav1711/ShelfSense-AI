@@ -1,6 +1,7 @@
 """Integration tests for book list and detail APIs."""
 
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework import status
@@ -100,3 +101,102 @@ class BooksAPIIntegrationTests(TestCase):
         response = self.client.get("/api/v1/books/", {"min_rating": "not-a-number"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.json())
+
+    @patch("books.views.related_book_ids_via_embeddings")
+    def test_related_books_uses_embedding_ranking_when_available(self, mock_embed_ids):
+        base = Book.objects.create(
+            source_site="test",
+            source_id="r0",
+            title="Source Book",
+            author="A",
+            rating=Decimal("4.00"),
+            description="Shared theme alpha bravo",
+            book_url="https://example.com/r0",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        second = Book.objects.create(
+            source_site="test",
+            source_id="r1",
+            title="Second",
+            author="B",
+            rating=Decimal("5.00"),
+            description="Other",
+            book_url="https://example.com/r1",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        third = Book.objects.create(
+            source_site="test",
+            source_id="r2",
+            title="Third",
+            author="C",
+            rating=Decimal("3.00"),
+            description="Other",
+            book_url="https://example.com/r2",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        mock_embed_ids.return_value = [third.id, second.id]
+
+        response = self.client.get(f"/api/v1/books/{base.id}/related/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        body = response.json()
+        self.assertEqual(body["book_id"], base.id)
+        self.assertEqual([row["id"] for row in body["results"]], [third.id, second.id])
+
+    @patch("books.views.related_book_ids_via_embeddings")
+    def test_related_books_falls_back_to_genre_when_embeddings_unavailable(self, mock_embed_ids):
+        mock_embed_ids.return_value = None
+        main = Book.objects.create(
+            source_site="test",
+            source_id="m1",
+            title="Main",
+            author="A",
+            rating=Decimal("4.00"),
+            description="Desc",
+            book_url="https://example.com/m1",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        match = Book.objects.create(
+            source_site="test",
+            source_id="m2",
+            title="Match",
+            author="B",
+            rating=Decimal("5.00"),
+            description="D",
+            book_url="https://example.com/m2",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        no_overlap = Book.objects.create(
+            source_site="test",
+            source_id="m3",
+            title="NoGenreOverlap",
+            author="C",
+            rating=Decimal("5.00"),
+            description="D",
+            book_url="https://example.com/m3",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        BookInsight.objects.create(
+            book=main,
+            insight_type="genre",
+            content="Science Fiction",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        BookInsight.objects.create(
+            book=match,
+            insight_type="genre",
+            content="Science Fiction anthology",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+        BookInsight.objects.create(
+            book=no_overlap,
+            insight_type="genre",
+            content="Cooking",
+            ingestion_status=IngestionStatus.COMPLETED,
+        )
+
+        response = self.client.get(f"/api/v1/books/{main.id}/related/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        body = response.json()
+        self.assertEqual(body["book_id"], main.id)
+        self.assertEqual(len(body["results"]), 1)
+        self.assertEqual(body["results"][0]["id"], match.id)
