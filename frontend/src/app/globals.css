@@ -17,3 +17,38 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+@layer components {
+  /* Primary actions — consistent hover, focus, disabled */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-zinc-900;
+  }
+
+  /* Secondary / outline — pagination, subtle actions */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 transition-colors duration-200 hover:border-zinc-400 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-zinc-300 disabled:hover:bg-white;
+  }
+
+  /* Interactive cards — layout unchanged; motion + depth on hover */
+  .card-interactive {
+    @apply rounded-md border border-zinc-200 bg-white transition-[box-shadow,border-color] duration-200 hover:border-zinc-300 hover:shadow-sm;
+  }
+
+  /* Page title block */
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-zinc-900;
+  }
+
+  .page-lead {
+    @apply mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600;
+  }
+
+  /* Section titles (h2 inside white panels) */
+  .section-title {
+    @apply text-base font-semibold tracking-tight text-zinc-900;
+  }
+
+  .section-kicker {
+    @apply text-xs font-medium uppercase tracking-wider text-zinc-500;
+  }
+}

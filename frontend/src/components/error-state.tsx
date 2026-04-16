@@ -5,9 +5,9 @@ type ErrorStateProps = {
 
 export function ErrorState({ title = "Something went wrong", message }: ErrorStateProps) {
   return (
-    <div className="rounded-md border border-red-200 bg-red-50 p-6">
-      <h2 className="text-sm font-semibold text-red-800">{title}</h2>
-      <p className="mt-2 text-sm text-red-700">{message}</p>
+    <div className="rounded-md border border-red-200 bg-red-50 p-6" role="alert">
+      <h2 className="text-sm font-semibold tracking-tight text-red-900">{title}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-red-800">{message}</p>
     </div>
   );
 }

@@ -14,7 +14,7 @@ export function AppNav() {
             <a
               key={item.href}
               href={item.href}
-              className="text-sm text-zinc-600 transition hover:text-zinc-900"
+              className="rounded-sm text-sm text-zinc-600 transition-colors duration-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
             >
               {item.label}
             </a>
