@@ -27,42 +27,93 @@ def _embedding_to_list(raw: Any) -> list:
     return list(raw)
 
 
-def run_indexing(limit: int = 200) -> dict[str, int]:
+def _encode_many(model: SentenceTransformer, contents: list[str]) -> list[list[float]]:
+    """Batch-encode chunk texts; returns one embedding vector per input row."""
+    if not contents:
+        return []
+    raw = model.encode(contents)
+    if isinstance(raw, list):
+        return [_embedding_to_list(row) for row in raw]
+    shape = getattr(raw, "shape", None)
+    if shape is not None and len(shape) == 2:
+        return [_embedding_to_list(raw[i]) for i in range(int(shape[0]))]
+    if shape is not None and len(shape) == 1:
+        return [_embedding_to_list(raw)]
+    return [_embedding_to_list(model.encode(text)) for text in contents]
+
+
+def run_indexing(limit: int = 200, batch_size: int = 100) -> dict[str, int]:
+    """
+    Index up to ``limit`` book chunks into Chroma, newest-first.
+
+    Chunks are loaded and embedded in batches of ``batch_size`` to limit memory
+    use on large corpora. Skips unchanged rows using ``content_hash`` (same as
+    single-chunk upserts).
+    """
+    if batch_size < 1:
+        batch_size = 100
+
     model = _embedding_model()
     collection = _collection()
-    chunks = (
+    base_qs = (
         BookChunk.objects.select_related("book")
         .filter(book__ingestion_status=IngestionStatus.COMPLETED)
-        .order_by("-updated_at")[:limit]
+        .order_by("-updated_at")
     )
 
     indexed = 0
     skipped = 0
-    for chunk in chunks:
-        chunk_hash = _chunk_hash(chunk.content)
-        doc_id = _chunk_id(chunk)
-        existing = collection.get(ids=[doc_id], include=["metadatas"])
-        if existing.get("ids") and existing["ids"][0]:
-            metadata = existing["metadatas"][0]
-            if metadata and metadata.get("content_hash") == chunk_hash:
+    offset = 0
+
+    while offset < limit:
+        take = min(batch_size, limit - offset)
+        chunks = list(base_qs[offset : offset + take])
+        if not chunks:
+            break
+
+        doc_ids = [_chunk_id(c) for c in chunks]
+        existing = collection.get(ids=doc_ids, include=["metadatas"])
+        existing_ids = existing.get("ids") or []
+        metadatas = existing.get("metadatas") or []
+        id_to_meta: dict[str, Any] = {}
+        for i, eid in enumerate(existing_ids):
+            id_to_meta[eid] = metadatas[i] if i < len(metadatas) else None
+
+        pending: list[tuple[BookChunk, str, str]] = []
+        for chunk in chunks:
+            chunk_hash = _chunk_hash(chunk.content)
+            doc_id = _chunk_id(chunk)
+            metadata = id_to_meta.get(doc_id)
+            if metadata is not None and metadata.get("content_hash") == chunk_hash:
                 skipped += 1
                 continue
+            pending.append((chunk, chunk_hash, doc_id))
 
-        embedding = _embedding_to_list(model.encode(chunk.content))
-        metadata = {
-            "book_id": chunk.book_id,
-            "book_title": chunk.book.title,
-            "chunk_index": chunk.chunk_index,
-            "book_url": chunk.book.book_url,
-            "content_hash": chunk_hash,
-        }
-        collection.upsert(
-            ids=[doc_id],
-            documents=[chunk.content],
-            embeddings=[embedding],
-            metadatas=[metadata],
-        )
-        indexed += 1
+        if pending:
+            contents = [c.content for c, _, _ in pending]
+            embeddings = _encode_many(model, contents)
+            ids = [doc_id for _, _, doc_id in pending]
+            metadatas_out = [
+                {
+                    "book_id": c.book_id,
+                    "book_title": c.book.title,
+                    "chunk_index": c.chunk_index,
+                    "book_url": c.book.book_url,
+                    "content_hash": h,
+                }
+                for c, h, _ in pending
+            ]
+            collection.upsert(
+                ids=ids,
+                documents=contents,
+                embeddings=embeddings,
+                metadatas=metadatas_out,
+            )
+            indexed += len(pending)
+
+        offset += len(chunks)
+        if len(chunks) < take:
+            break
 
     return {"indexed": indexed, "skipped": skipped}
 
