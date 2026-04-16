@@ -1,9 +1,7 @@
 const navItems = [
   { label: "Dashboard", href: "/" },
   { label: "Books", href: "/books" },
-  { label: "Ingestion", href: "/ingestion" },
-  { label: "Insights", href: "/insights" },
-  { label: "RAG", href: "/rag" },
+  { label: "Q&A", href: "/qa" },
 ];
 
 export function AppNav() {

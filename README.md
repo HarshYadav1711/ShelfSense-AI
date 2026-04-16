@@ -61,6 +61,14 @@ Frontend runs at `http://localhost:3000`.
 
 These status endpoints keep the scaffold clean while preparing module boundaries for feature development.
 
+## Product API Surface
+
+- `GET /api/v1/books/` list books (supports `search`, `min_rating`, pagination)
+- `GET /api/v1/books/{id}/` full book details with insights
+- `GET /api/v1/books/{id}/related/` related book recommendations
+- `POST /api/v1/books/upload-process/` scrape, ingest, generate insights, and index
+- `POST /api/v1/rag/ask/` grounded Q&A with source citations
+
 ## AI Layer Endpoints
 
 - `POST /api/v1/insights/generate/` with `{ "limit": 10 }`
