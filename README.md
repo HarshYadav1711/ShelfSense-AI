@@ -189,6 +189,26 @@ MYSQL_PASSWORD=...real password...
 
 If `migrate` fails with `cryptography package is required for caching_sha2_password`, install dependencies again from the repo root `requirements.txt` (it includes `cryptography` for MySQL 8 default auth with PyMySQL), or switch the MySQL user plugin to `mysql_native_password`.
 
+### 2b) Pipeline worker (async jobs without Redis/Celery)
+
+`POST /api/v1/books/upload-process/` enqueues a `PipelineJob` with `status=pending`. A separate worker process claims jobs from the database and runs the pipeline.
+
+Open a second terminal:
+
+```bash
+cd backend
+.venv\Scripts\Activate.ps1
+python manage.py run_worker
+```
+
+Optional tuning:
+
+```bash
+python manage.py run_worker --poll-interval 1
+```
+
+Failed jobs can be retried by the worker on the next poll cycle (`pending` and `failed` are eligible).
+
 ### 3. Frontend Setup
 
 ```bash
