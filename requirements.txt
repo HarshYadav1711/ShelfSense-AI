@@ -1,0 +1,9 @@
+Django
+djangorestframework
+django-cors-headers
+drf-spectacular
+python-dotenv
+PyMySQL
+chromadb
+selenium
+ollama
