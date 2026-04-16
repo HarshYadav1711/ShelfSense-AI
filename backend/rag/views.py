@@ -1,7 +1,10 @@
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .chat_serializers import RagChatHistorySerializer
+from .models import RagChatHistory
 from .serializers import RagIndexRequestSerializer, RagQuestionRequestSerializer
 from .services import answer_question, run_indexing
 
@@ -40,3 +43,18 @@ class RagQuestionView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class RagHistoryPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class RagHistoryView(APIView):
+    def get(self, request):
+        queryset = RagChatHistory.objects.all()
+        paginator = RagHistoryPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = RagChatHistorySerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)

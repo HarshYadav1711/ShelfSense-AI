@@ -4,12 +4,14 @@ import hashlib
 import os
 from pathlib import Path
 from typing import Any
+from django.utils import timezone
 
 import chromadb
 from sentence_transformers import SentenceTransformer
 
 from books.models import BookChunk, IngestionStatus
 from insights.llm import LocalLLMClient, LocalLLMError
+from .models import RagChatHistory, RagQueryCache
 
 
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
@@ -57,6 +59,14 @@ def run_indexing(limit: int = 200) -> dict[str, int]:
 
 
 def answer_question(question: str, top_k: int = 4) -> dict[str, Any]:
+    cache_key = _cache_key(question=question, top_k=top_k)
+    cached = RagQueryCache.objects.filter(cache_key=cache_key).first()
+    if cached:
+        payload = cached.response
+        _save_chat_history(payload=payload, question=question)
+        payload["metadata"]["cache_hit"] = True
+        return payload
+
     model = _embedding_model()
     collection = _collection()
     llm = LocalLLMClient()
@@ -77,7 +87,7 @@ def answer_question(question: str, top_k: int = 4) -> dict[str, Any]:
     except LocalLLMError:
         answer = "I do not know based on the indexed book context."
 
-    return {
+    payload = {
         "answer": answer.strip(),
         "sources": [
             {
@@ -95,8 +105,20 @@ def answer_question(question: str, top_k: int = 4) -> dict[str, Any]:
             "retrieved_chunks": len(context_items),
             "embedding_model": EMBEDDING_MODEL_NAME,
             "collection": CHROMA_COLLECTION_NAME,
+            "cache_hit": False,
         },
     }
+    RagQueryCache.objects.update_or_create(
+        cache_key=cache_key,
+        defaults={
+            "question": question,
+            "top_k": top_k,
+            "index_stamp": _index_stamp(),
+            "response": payload,
+        },
+    )
+    _save_chat_history(payload=payload, question=question)
+    return payload
 
 
 def _build_context_items(query_result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -153,3 +175,24 @@ def _chunk_id(chunk: BookChunk) -> str:
 
 def _chunk_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _index_stamp() -> str:
+    latest_chunk = BookChunk.objects.order_by("-updated_at").values_list("updated_at", flat=True).first()
+    if latest_chunk is None:
+        return "empty"
+    return timezone.localtime(latest_chunk).isoformat()
+
+
+def _cache_key(question: str, top_k: int) -> str:
+    raw = f"{question.strip().lower()}|{top_k}|{_index_stamp()}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _save_chat_history(payload: dict[str, Any], question: str) -> None:
+    RagChatHistory.objects.create(
+        question=question,
+        answer=payload.get("answer", ""),
+        sources=payload.get("sources", []),
+        related_books=payload.get("related_books", []),
+    )

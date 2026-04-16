@@ -50,16 +50,18 @@ class BooksToScrapeSeleniumClient:
     def close(self):
         self.driver.quit()
 
-    def fetch_batch(self, limit: int) -> List[ScrapedBook]:
+    def fetch_batch(self, limit: int, max_pages: int = 3) -> List[ScrapedBook]:
         results: List[ScrapedBook] = []
         page_url = BASE_URL
+        pages_visited = 0
 
-        while len(results) < limit and page_url:
+        while len(results) < limit and page_url and pages_visited < max_pages:
             self.driver.get(page_url)
             self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "article.product_pod")))
             cards = self.driver.find_elements(By.CSS_SELECTOR, "article.product_pod")
             next_page_url = self._next_page_url(page_url)
             detail_targets = []
+            pages_visited += 1
 
             for card in cards:
                 if len(results) >= limit:
@@ -137,14 +139,14 @@ class BooksToScrapeSeleniumClient:
         return urljoin(current_page_url, next_link.get_attribute("href"))
 
 
-def scrape_books(limit: int, retries: int = 2) -> List[ScrapedBook]:
+def scrape_books(limit: int, retries: int = 2, max_pages: int = 3) -> List[ScrapedBook]:
     last_error: Exception | None = None
 
     for _attempt in range(retries + 1):
         client = None
         try:
             client = BooksToScrapeSeleniumClient()
-            return client.fetch_batch(limit=limit)
+            return client.fetch_batch(limit=limit, max_pages=max_pages)
         except TimeoutException as exc:
             last_error = exc
         finally:

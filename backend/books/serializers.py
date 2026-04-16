@@ -46,3 +46,4 @@ class BookDetailSerializer(serializers.ModelSerializer):
 
 class UploadProcessRequestSerializer(serializers.Serializer):
     limit = serializers.IntegerField(min_value=1, max_value=50, default=10)
+    max_pages = serializers.IntegerField(min_value=1, max_value=20, default=3)

@@ -8,9 +8,10 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--limit", type=int, default=10)
+        parser.add_argument("--max-pages", type=int, default=3)
 
     def handle(self, *args, **options):
-        run = run_book_ingestion(limit=options["limit"])
+        run = run_book_ingestion(limit=options["limit"], max_pages=options["max_pages"])
         self.stdout.write(
             self.style.SUCCESS(
                 f"Run {run.id} finished with status={run.status} "

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
-import { BookListItem, getBooks, uploadAndProcess } from "@/lib/api";
+import { BookListItem, getBooks, getPipelineJob, PipelineJob, uploadAndProcess } from "@/lib/api";
 
 export default function BooksPage() {
   const [books, setBooks] = useState<BookListItem[]>([]);
@@ -15,6 +15,7 @@ export default function BooksPage() {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [job, setJob] = useState<PipelineJob | null>(null);
   const [error, setError] = useState("");
 
   const loadBooks = useCallback(async () => {
@@ -39,14 +40,33 @@ export default function BooksPage() {
     try {
       setProcessing(true);
       setError("");
-      await uploadAndProcess(10);
-      await loadBooks();
+      const result = await uploadAndProcess(10);
+      setJob(result.job);
     } catch {
       setError("Book ingestion pipeline failed. Verify backend services and retry.");
-    } finally {
       setProcessing(false);
     }
   };
+
+  useEffect(() => {
+    if (!job || !processing) return;
+    if (job.status === "completed" || job.status === "failed") {
+      setProcessing(false);
+      void loadBooks();
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const next = await getPipelineJob(job.id);
+        setJob(next);
+      } catch {
+        setError("Unable to fetch pipeline status.");
+        setProcessing(false);
+      }
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [job, loadBooks, processing]);
 
   const totalPages = Math.max(1, Math.ceil(count / 12));
 
@@ -82,6 +102,20 @@ export default function BooksPage() {
       </section>
 
       {error ? <ErrorState message={error} /> : null}
+      {job ? (
+        <section className="rounded-md border border-zinc-200 bg-white p-4">
+          <div className="flex items-center justify-between text-sm">
+            <p className="font-medium">
+              Pipeline stage: {job.stage} ({job.status})
+            </p>
+            <p>{job.progress_percent}%</p>
+          </div>
+          <div className="mt-2 h-2 w-full rounded-full bg-zinc-200">
+            <div className="h-2 rounded-full bg-zinc-900 transition-all" style={{ width: `${job.progress_percent}%` }} />
+          </div>
+          {job.error_message ? <p className="mt-2 text-sm text-red-700">{job.error_message}</p> : null}
+        </section>
+      ) : null}
 
       {loading ? (
         <LoadingState label="Loading books..." />

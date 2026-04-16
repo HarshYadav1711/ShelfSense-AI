@@ -4,9 +4,9 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ingestion.services import run_book_ingestion
-from insights.services import generate_insights_for_books
-from rag.services import run_indexing
+from ingestion.pipeline import launch_pipeline_job
+from ingestion.models import PipelineJob
+from ingestion.serializers import PipelineJobSerializer
 
 from .models import Book, BookInsight
 from .serializers import BookDetailSerializer, BookListSerializer, UploadProcessRequestSerializer
@@ -95,22 +95,22 @@ class UploadProcessBooksView(APIView):
         serializer = UploadProcessRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         limit = serializer.validated_data["limit"]
-
-        ingestion_run = run_book_ingestion(limit=limit)
-        insight_stats = generate_insights_for_books(limit=limit)
-        index_stats = run_indexing(limit=limit * 4)
+        max_pages = serializer.validated_data["max_pages"]
+        job = launch_pipeline_job(limit=limit, max_pages=max_pages)
 
         return Response(
             {
                 "status": "ok",
-                "ingestion": {
-                    "run_id": ingestion_run.id,
-                    "status": ingestion_run.status,
-                    "processed_count": ingestion_run.processed_count,
-                    "failed_count": ingestion_run.failed_count,
-                },
-                "insights": insight_stats,
-                "indexing": index_stats,
+                "job": PipelineJobSerializer(job).data,
             },
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+class UploadProcessStatusView(APIView):
+    def get(self, _request, job_id: int):
+        try:
+            job = PipelineJob.objects.get(id=job_id)
+        except PipelineJob.DoesNotExist:
+            return Response({"message": "Pipeline job not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PipelineJobSerializer(job).data, status=status.HTTP_200_OK)

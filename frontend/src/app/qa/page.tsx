@@ -1,16 +1,18 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useEffect } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
-import { askRag, RagResponse } from "@/lib/api";
+import { askRag, getRagHistory, RagHistoryItem, RagResponse } from "@/lib/api";
 
 export default function QaPage() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<RagResponse | null>(null);
+  const [history, setHistory] = useState<RagHistoryItem[]>([]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -27,6 +29,18 @@ export default function QaPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const payload = await getRagHistory(1);
+        setHistory(payload.results);
+      } catch {
+        // Keep page usable even when history endpoint is unavailable.
+      }
+    };
+    void loadHistory();
+  }, [result]);
 
   return (
     <div className="space-y-6">
@@ -87,6 +101,22 @@ export default function QaPage() {
           </article>
         </section>
       )}
+
+      <section className="rounded-md border border-zinc-200 bg-white p-6">
+        <h2 className="text-lg font-semibold">Recent Q&A History</h2>
+        {history.length === 0 ? (
+          <p className="mt-2 text-sm text-zinc-600">No recent Q&A history yet.</p>
+        ) : (
+          <div className="mt-3 grid gap-3">
+            {history.map((item) => (
+              <article key={item.id} className="rounded border border-zinc-200 p-3 text-sm">
+                <p className="font-medium text-zinc-800">{item.question}</p>
+                <p className="mt-1 text-zinc-600">{item.answer}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

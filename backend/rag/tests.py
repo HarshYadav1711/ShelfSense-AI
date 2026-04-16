@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
+from rag.models import RagChatHistory, RagQueryCache
 from rag.services import _build_context_items, answer_question
 
 
@@ -48,3 +49,24 @@ class RagFormattingTests(TestCase):
         self.assertEqual(payload["answer"], "Grounded answer.")
         self.assertEqual(payload["related_books"], ["Book One"])
         self.assertEqual(payload["metadata"]["top_k"], 3)
+
+    @patch("rag.services.LocalLLMClient")
+    @patch("rag.services._embedding_model")
+    @patch("rag.services._collection")
+    def test_answer_question_uses_cache_when_available(self, mock_collection, mock_embedding_model, mock_llm):
+        mock_embedding_model.return_value.encode.return_value = [0.1, 0.2, 0.3]
+        mock_collection.return_value.query.return_value = {
+            "documents": [["cached chunk"]],
+            "metadatas": [[{"book_id": 1, "book_title": "Book One", "book_url": "http://example.com/1", "chunk_index": 0}]],
+            "distances": [[0.1]],
+        }
+        mock_llm.return_value.generate_text.return_value = "First answer."
+
+        first = answer_question(question="Which book is related?", top_k=2)
+        second = answer_question(question="Which book is related?", top_k=2)
+
+        self.assertEqual(first["answer"], "First answer.")
+        self.assertEqual(second["answer"], "First answer.")
+        self.assertTrue(second["metadata"]["cache_hit"])
+        self.assertEqual(RagQueryCache.objects.count(), 1)
+        self.assertEqual(RagChatHistory.objects.count(), 2)

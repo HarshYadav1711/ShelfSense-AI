@@ -67,7 +67,9 @@ These status endpoints keep the scaffold clean while preparing module boundaries
 - `GET /api/v1/books/{id}/` full book details with insights
 - `GET /api/v1/books/{id}/related/` related book recommendations
 - `POST /api/v1/books/upload-process/` scrape, ingest, generate insights, and index
+- `GET /api/v1/books/upload-process/{jobId}/` poll async pipeline status/progress
 - `POST /api/v1/rag/ask/` grounded Q&A with source citations
+- `GET /api/v1/rag/history/` recent question-answer history
 
 ## AI Layer Endpoints
 
@@ -83,6 +85,23 @@ Book descriptions are chunked with overlapping windows:
 - overlap: `20` words
 
 This keeps local context continuity for retrieval while staying simple to explain during review.
+
+## Bonus Features (Stable)
+
+- RAG cache keyed by `(question, top_k, index_stamp)` to avoid repeated generation.
+- Retrieval result reuse and persisted chat history for recent Q&A sessions.
+- Lightweight background pipeline jobs (`queued -> ingestion -> insights -> indexing -> completed`) with progress percent.
+- Safe multi-page scraping (`max_pages`) for repeatable bulk ingestion.
+- Retry-safe ingestion and retrieval error handling with clear user-facing messages.
+
+## Sample Data Generation
+
+Run local sample generation for quick demo/testing:
+
+```bash
+cd backend
+python manage.py generate_sample_books
+```
 
 ## Local-Only AI Setup
 

@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from books.models import Book, BookChunk, IngestionStatus
 
-from .models import IngestionLog, IngestionRun
+from .models import IngestionLog, IngestionRun, PipelineJob
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -21,14 +21,17 @@ if str(REPO_ROOT) not in sys.path:
 from scraper.books_to_scrape import ScrapedBook, scrape_books  # noqa: E402
 
 
-def run_book_ingestion(limit: int = 10) -> IngestionRun:
+def run_book_ingestion(limit: int = 10, max_pages: int = 3, job: PipelineJob | None = None) -> IngestionRun:
     run = IngestionRun.objects.create(
         status=IngestionStatus.PROCESSING,
         requested_count=limit,
     )
+    if job is not None:
+        job.ingestion_run = run
+        _set_job_progress(job, stage="scraping", percent=10)
 
     try:
-        scraped_books = scrape_books(limit=limit)
+        scraped_books = scrape_books(limit=limit, max_pages=max_pages)
         processed_count = 0
         failed_count = 0
 
@@ -44,6 +47,9 @@ def run_book_ingestion(limit: int = 10) -> IngestionRun:
                     status=IngestionStatus.FAILED,
                     message=f"Failed '{normalized_book.title}': {exc}",
                 )
+            if job is not None and scraped_books:
+                progress = 10 + int((processed_count + failed_count) / len(scraped_books) * 60)
+                _set_job_progress(job, stage="ingesting", percent=min(progress, 70))
 
         run.status = IngestionStatus.COMPLETED
         run.processed_count = processed_count
@@ -60,6 +66,8 @@ def run_book_ingestion(limit: int = 10) -> IngestionRun:
             status=IngestionStatus.FAILED,
             message=f"Ingestion failed: {exc}",
         )
+        if job is not None:
+            _set_job_progress(job, stage="failed", percent=100, error_message=str(exc))
 
     return run
 
@@ -153,3 +161,30 @@ def _chunk_text(text: str, max_words: int = 80, overlap_words: int = 20) -> Iter
 
 def _content_hash(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _set_job_progress(
+    job: PipelineJob,
+    stage: str,
+    percent: int,
+    error_message: str = "",
+) -> None:
+    job.stage = stage
+    job.progress_percent = max(0, min(100, percent))
+    if error_message:
+        job.error_message = error_message
+        job.status = IngestionStatus.FAILED
+    elif stage == "completed":
+        job.status = IngestionStatus.COMPLETED
+    else:
+        job.status = IngestionStatus.PROCESSING
+    job.save(
+        update_fields=[
+            "status",
+            "stage",
+            "progress_percent",
+            "error_message",
+            "updated_at",
+            "ingestion_run",
+        ]
+    )

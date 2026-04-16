@@ -35,7 +35,30 @@ export type RagResponse = {
     similarity_distance: number | null;
   }>;
   related_books: string[];
-  metadata: Record<string, string | number>;
+  metadata: Record<string, string | number | boolean>;
+};
+
+export type PipelineJob = {
+  id: number;
+  status: string;
+  stage: string;
+  progress_percent: number;
+  limit: number;
+  max_pages: number;
+  ingestion_run_id: number | null;
+  details: Record<string, unknown>;
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RagHistoryItem = {
+  id: number;
+  question: string;
+  answer: string;
+  sources: RagResponse["sources"];
+  related_books: string[];
+  created_at: string;
 };
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -73,14 +96,16 @@ export function getRelatedBooks(bookId: number): Promise<{ book_id: number; resu
 
 export function uploadAndProcess(limit = 10): Promise<{
   status: string;
-  ingestion: Record<string, string | number>;
-  insights: Record<string, number>;
-  indexing: Record<string, number>;
+  job: PipelineJob;
 }> {
   return fetchJson("/books/upload-process/", {
     method: "POST",
-    body: JSON.stringify({ limit }),
+    body: JSON.stringify({ limit, max_pages: 3 }),
   });
+}
+
+export function getPipelineJob(jobId: number): Promise<PipelineJob> {
+  return fetchJson<PipelineJob>(`/books/upload-process/${jobId}/`);
 }
 
 export function askRag(question: string): Promise<RagResponse> {
@@ -88,4 +113,13 @@ export function askRag(question: string): Promise<RagResponse> {
     method: "POST",
     body: JSON.stringify({ question, top_k: 4 }),
   });
+}
+
+export function getRagHistory(page = 1): Promise<{
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: RagHistoryItem[];
+}> {
+  return fetchJson(`/rag/history/?page=${page}&page_size=5`);
 }
