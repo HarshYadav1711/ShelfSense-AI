@@ -18,6 +18,15 @@ EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "shelfsense-book-chunks")
 
 
+def _embedding_to_list(raw: Any) -> list:
+    """Normalize SentenceTransformer output (tensor) or test doubles (plain list)."""
+    if hasattr(raw, "tolist"):
+        return raw.tolist()
+    if isinstance(raw, (list, tuple)):
+        return list(raw)
+    return list(raw)
+
+
 def run_indexing(limit: int = 200) -> dict[str, int]:
     model = _embedding_model()
     collection = _collection()
@@ -39,7 +48,7 @@ def run_indexing(limit: int = 200) -> dict[str, int]:
                 skipped += 1
                 continue
 
-        embedding = model.encode(chunk.content).tolist()
+        embedding = _embedding_to_list(model.encode(chunk.content))
         metadata = {
             "book_id": chunk.book_id,
             "book_title": chunk.book.title,
@@ -71,7 +80,7 @@ def answer_question(question: str, top_k: int = 4) -> dict[str, Any]:
     collection = _collection()
     llm = LocalLLMClient()
 
-    query_embedding = model.encode(question).tolist()
+    query_embedding = _embedding_to_list(model.encode(question))
     result = collection.query(query_embeddings=[query_embedding], n_results=top_k)
     context_items = _build_context_items(result)
     context_text = _context_block(context_items)
