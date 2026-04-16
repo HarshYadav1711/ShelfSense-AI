@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import hashlib
 from pathlib import Path
 import sys
 from typing import Iterable
@@ -121,18 +122,34 @@ def _replace_chunks(book: Book, text: str) -> None:
                 book=book,
                 chunk_index=index,
                 content=chunk,
-                metadata={"source": "description"},
+                metadata={
+                    "source": "description",
+                    "word_count": len(chunk.split()),
+                    "content_hash": _content_hash(chunk),
+                },
             )
             for index, chunk in enumerate(chunks)
         ]
     )
 
 
-def _chunk_text(text: str, max_words: int = 80) -> Iterable[str]:
+def _chunk_text(text: str, max_words: int = 80, overlap_words: int = 20) -> Iterable[str]:
     words = text.split()
     if not words:
         return []
-    return [
-        " ".join(words[index : index + max_words])
-        for index in range(0, len(words), max_words)
-    ]
+    if overlap_words >= max_words:
+        overlap_words = max_words // 2
+
+    chunks = []
+    start = 0
+    while start < len(words):
+        end = start + max_words
+        chunks.append(" ".join(words[start:end]))
+        if end >= len(words):
+            break
+        start = end - overlap_words
+    return chunks
+
+
+def _content_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

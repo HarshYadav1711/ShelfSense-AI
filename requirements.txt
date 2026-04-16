@@ -7,3 +7,5 @@ PyMySQL
 chromadb
 selenium
 ollama
+sentence-transformers
+requests

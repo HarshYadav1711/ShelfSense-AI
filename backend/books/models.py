@@ -74,6 +74,12 @@ class BookInsight(models.Model):
 
     class Meta:
         ordering = ["book_id", "insight_type", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["book", "insight_type"],
+                name="unique_insight_type_per_book",
+            )
+        ]
 
     def __str__(self):
         return f"{self.book.title} - {self.insight_type}"

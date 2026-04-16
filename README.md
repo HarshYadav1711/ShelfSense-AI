@@ -60,3 +60,24 @@ Frontend runs at `http://localhost:3000`.
 - `GET /api/v1/rag/status/`
 
 These status endpoints keep the scaffold clean while preparing module boundaries for feature development.
+
+## AI Layer Endpoints
+
+- `POST /api/v1/insights/generate/` with `{ "limit": 10 }`
+- `POST /api/v1/rag/index/` with `{ "limit": 200 }`
+- `POST /api/v1/rag/ask/` with `{ "question": "...", "top_k": 4 }`
+
+## Chunking Strategy
+
+Book descriptions are chunked with overlapping windows:
+
+- chunk size: `80` words
+- overlap: `20` words
+
+This keeps local context continuity for retrieval while staying simple to explain during review.
+
+## Local-Only AI Setup
+
+- Embeddings: Sentence Transformers (`sentence-transformers/all-MiniLM-L6-v2`)
+- Vector DB: Chroma (`backend/.chroma`)
+- Generation: local Ollama or LM Studio (configured through `backend/.env`)
