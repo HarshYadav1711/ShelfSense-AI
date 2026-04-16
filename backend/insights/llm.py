@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 import requests
+from requests import RequestException
 
 
 class LocalLLMError(RuntimeError):
@@ -36,32 +37,38 @@ class LocalLLMClient:
         return self._generate_ollama(prompt)
 
     def _generate_ollama(self, prompt: str) -> str:
-        response = requests.post(
-            f"{self.ollama_url}/api/generate",
-            json={
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0, "num_predict": 220},
-            },
-            timeout=self.timeout_seconds,
-        )
+        try:
+            response = requests.post(
+                f"{self.ollama_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"temperature": 0, "num_predict": 220},
+                },
+                timeout=self.timeout_seconds,
+            )
+        except RequestException as exc:
+            raise LocalLLMError("Unable to reach Ollama (is it running?)") from exc
         if not response.ok:
             raise LocalLLMError("Ollama request failed")
         payload = response.json()
         return (payload.get("response") or "").strip()
 
     def _generate_lmstudio(self, prompt: str) -> str:
-        response = requests.post(
-            f"{self.lmstudio_url}/v1/chat/completions",
-            json={
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
-                "max_tokens": 260,
-            },
-            timeout=self.timeout_seconds,
-        )
+        try:
+            response = requests.post(
+                f"{self.lmstudio_url}/v1/chat/completions",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                    "max_tokens": 260,
+                },
+                timeout=self.timeout_seconds,
+            )
+        except RequestException as exc:
+            raise LocalLLMError("Unable to reach LM Studio (is the local server running?)") from exc
         if not response.ok:
             raise LocalLLMError("LM Studio request failed")
         payload = response.json()

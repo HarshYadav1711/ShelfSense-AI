@@ -169,10 +169,25 @@ cd shelfsense-ai
 
 ```bash
 cd backend
-pip install -r requirements.txt
+python -m venv .venv
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+pip install -r ..\requirements.txt
+copy .env.example .env
 python manage.py migrate
 python manage.py runserver
 ```
+
+By default, `backend/.env.example` runs on **SQLite** so `migrate` works immediately after copying `.env`.
+
+To run the full assignment stack on **MySQL**, set in `backend/.env`:
+
+```env
+USE_MYSQL=1
+MYSQL_PASSWORD=...real password...
+```
+
+If `migrate` fails with `cryptography package is required for caching_sha2_password`, install dependencies again from the repo root `requirements.txt` (it includes `cryptography` for MySQL 8 default auth with PyMySQL), or switch the MySQL user plugin to `mysql_native_password`.
 
 ### 3. Frontend Setup
 

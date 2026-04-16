@@ -4,6 +4,7 @@ django-cors-headers
 drf-spectacular
 python-dotenv
 PyMySQL
+cryptography
 chromadb
 selenium
 ollama

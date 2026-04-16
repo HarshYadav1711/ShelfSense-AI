@@ -1,10 +1,13 @@
 from pathlib import Path
+import logging
 import os
 
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+logger = logging.getLogger(__name__)
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-local-env")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
@@ -57,16 +60,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("MYSQL_DATABASE", "shelfsense"),
-        "USER": os.getenv("MYSQL_USER", "root"),
-        "PASSWORD": os.getenv("MYSQL_PASSWORD", ""),
-        "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
-        "PORT": os.getenv("MYSQL_PORT", "3306"),
+USE_MYSQL = os.getenv("USE_MYSQL", "0").lower() in {"1", "true", "yes"}
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+PLACEHOLDER_PASSWORDS = {"", "your-local-password", "changeme"}
+
+if USE_MYSQL and MYSQL_PASSWORD not in PLACEHOLDER_PASSWORDS:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("MYSQL_DATABASE", "shelfsense"),
+            "USER": os.getenv("MYSQL_USER", "root"),
+            "PASSWORD": MYSQL_PASSWORD,
+            "HOST": os.getenv("MYSQL_HOST", "127.0.0.1"),
+            "PORT": os.getenv("MYSQL_PORT", "3306"),
+        }
     }
-}
+else:
+    # Local-first default: SQLite works out of the box after copying `.env.example`.
+    # Flip on MySQL for the full assignment stack by setting `USE_MYSQL=1` and a real password.
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+    if USE_MYSQL:
+        logger.warning(
+            "MySQL requested via USE_MYSQL=1 but MYSQL_PASSWORD is missing or still a placeholder. "
+            "Falling back to SQLite for local development."
+        )
+    else:
+        logger.info("Using SQLite for local development. Set USE_MYSQL=1 to enable MySQL.")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
