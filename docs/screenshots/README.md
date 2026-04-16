@@ -1,15 +1,16 @@
 # Screenshot Checklist
 
-Add 3 to 4 PNG screenshots before final submission:
+These files are committed for the main README **Screenshots** section:
 
-1. `dashboard-books.png`
-2. `book-detail.png`
-3. `qa-with-citations.png`
-4. `pipeline-progress.png`
+1. `book-dashboard.png` — Book dashboard (library overview)
+2. `book-dashboard-search.png` — Book dashboard with search and Upload & Process
+3. `book-qa.png` — Book Q&A (retrieval Q&A, history)
+4. `api-docs-async-job.png` — OpenAPI/Swagger (`/api/docs/`), e.g. async ingestion `202` response
 
-Capture from local app pages:
-- `/books`
-- `/books/{id}`
-- `/qa`
+**Where to capture (local):**
 
-Keep browser width around 1366px so screenshots have consistent framing.
+- `/books` — dashboard grid (and header with search/upload)
+- `/qa` — Q&A page
+- `http://127.0.0.1:8000/api/docs/` — interactive API docs
+
+Keep browser width around 1366px so replacements stay consistent with existing framing.

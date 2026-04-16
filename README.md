@@ -153,12 +153,21 @@ POST /api/v1/rag/index/             → Run vector indexing (optional; worker al
 
 ## 📸 Screenshots
 
-> (Add 3–4 screenshots here)
+### Book dashboard (library overview)
 
-* Dashboard View
-* Book Detail Page
-* Q&A Interface
-* API Response Example
+![Book dashboard showing uploaded books as cards](docs/screenshots/book-dashboard.png)
+
+### Book dashboard — search and upload
+
+![Book dashboard with search bar and Upload & Process action](docs/screenshots/book-dashboard-search.png)
+
+### Book Q&A — grounded retrieval
+
+![Book Q&A interface with question input, answer area, and recent history](docs/screenshots/book-qa.png)
+
+### OpenAPI docs — async job response
+
+![Swagger UI showing a 202 Accepted ingestion job payload](docs/screenshots/api-docs-async-job.png)
 
 ---
 
