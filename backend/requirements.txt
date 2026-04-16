@@ -6,6 +6,7 @@ drf-spectacular==0.29.0
 
 # --- Configuration & environment ---
 python-dotenv==1.2.2
+gunicorn==21.2.0
 
 # --- MySQL (PyMySQL + TLS for caching_sha2_password) ---
 PyMySQL==1.1.0
