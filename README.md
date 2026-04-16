@@ -16,7 +16,7 @@ Built as part of the Ergosphere Solutions Internship Assignment, this project de
 * Fast semantic search using vector embeddings
 * RESTful APIs built with Django REST Framework
 * Clean and responsive UI with Next.js + Tailwind CSS
-* Modular and scalable architecture
+* Modular architecture designed for scalability
 
 ---
 
@@ -46,7 +46,7 @@ Built as part of the Ergosphere Solutions Internship Assignment, this project de
 | Frontend   | Next.js, Tailwind CSS                            |
 | Database   | MySQL                                            |
 | Vector DB  | ChromaDB                                         |
-| AI Models  | Sentence Transformers + LLM (LM Studio / OpenAI) |
+| AI Models  | Sentence Transformers + local LLM (Ollama or LM Studio via `LOCAL_LLM_PROVIDER`) |
 | Automation | Selenium                                         |
 
 ---
@@ -91,27 +91,33 @@ The system implements a complete **Retrieval-Augmented Generation pipeline**:
 6. Context constructed
 7. LLM generates answer with **source references**
 
-✔ Ensures accurate, context-aware answers
-✔ Reduces hallucination
-✔ Provides explainability via citations
+✔ Context-grounded answers with explicit source passages
+✔ Retrieval step constrains the model to indexed text
+✔ Explainability via per-chunk citations
 
 ---
 
 ### 4. REST API Endpoints
 
-#### GET APIs
+Base path: **`/api/v1/`**.
+
+#### GET
 
 ```
-GET /api/books/                      → List all books
-GET /api/books/<id>/                → Book details
-GET /api/books/<id>/recommendations/ → Related books
+GET  /api/v1/books/                              → List books (pagination & filters)
+GET  /api/v1/books/<id>/                         → Book details
+GET  /api/v1/books/<id>/related/                 → Related books
+GET  /api/v1/books/upload-process/<job_id>/      → Pipeline job status
+GET  /api/v1/rag/status/                         → RAG module health
+GET  /api/v1/rag/history/                        → Past Q&A (paginated)
 ```
 
-#### POST APIs
+#### POST
 
 ```
-POST /api/books/upload/ → Scrape & process books
-POST /api/ask/          → Ask questions (RAG)
+POST /api/v1/books/upload-process/  → Enqueue scrape + insights + indexing (requires worker)
+POST /api/v1/rag/ask/               → Ask a question (RAG)
+POST /api/v1/rag/index/             → Run vector indexing (optional; worker also indexes)
 ```
 
 ---
@@ -189,25 +195,9 @@ MYSQL_PASSWORD=...real password...
 
 If `migrate` fails with `cryptography package is required for caching_sha2_password`, install dependencies again from the repo root `requirements.txt` (it includes `cryptography` for MySQL 8 default auth with PyMySQL), or switch the MySQL user plugin to `mysql_native_password`.
 
-### 2b) Pipeline worker (async jobs without Redis/Celery)
+### 2b) Background pipeline jobs
 
-`POST /api/v1/books/upload-process/` enqueues a `PipelineJob` with `status=pending`. A separate worker process claims jobs from the database and runs the pipeline.
-
-Open a second terminal:
-
-```bash
-cd backend
-.venv\Scripts\Activate.ps1
-python manage.py run_worker
-```
-
-Optional tuning:
-
-```bash
-python manage.py run_worker --poll-interval 1
-```
-
-Failed jobs can be retried by the worker on the next poll cycle (`pending` and `failed` are eligible).
+`POST /api/v1/books/upload-process/` writes a `PipelineJob` row (`pending`). A **separate process** must run the worker so ingestion, insights, and indexing complete. See [How to run the worker](#how-to-run-the-worker).
 
 ### 3. Frontend Setup
 
@@ -226,6 +216,40 @@ python scraper.py
 
 ---
 
+## How to run the worker
+
+The backend uses a **database-backed worker** (no Redis/Celery in this repository): one process polls `PipelineJob` rows, claims a job with row-level locking, and runs **ingestion → insights → vector indexing** to completion.
+
+**When to start it:** Before or after calling `POST /api/v1/books/upload-process/`. Without the worker, jobs remain `pending` and no books are scraped or indexed.
+
+**Steps** (from the repo root, with the same virtualenv and `requirements.txt` as the API):
+
+```bash
+cd backend
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+python manage.py run_worker
+```
+
+```bash
+cd backend
+# Linux / macOS
+source .venv/bin/activate
+python manage.py run_worker
+```
+
+**Options:**
+
+```bash
+python manage.py run_worker --poll-interval 1
+```
+
+`--poll-interval` (default **2** seconds) controls how long the worker sleeps when no eligible job is available. Eligible statuses include `pending` and `failed` (failed jobs can be picked up again on a later poll).
+
+**Concurrency model:** The design assumes **one worker process** per environment. Multiple workers are not coordinated beyond database locking; for this assignment scope, run a single worker for predictable behavior.
+
+---
+
 ## Sample Questions
 
 Try asking:
@@ -239,10 +263,28 @@ Try asking:
 
 ## Sample Output
 
+Shape of `POST /api/v1/rag/ask/` (abbreviated):
+
 ```json
 {
   "answer": "This book explores...",
-  "sources": ["Book Title A", "Book Title B"]
+  "sources": [
+    {
+      "book_id": 1,
+      "book_title": "Example Title",
+      "book_url": "https://books.toscrape.com/...",
+      "chunk_index": 0,
+      "similarity_distance": 0.42
+    }
+  ],
+  "related_books": ["Example Title"],
+  "metadata": {
+    "top_k": 4,
+    "retrieved_chunks": 1,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "collection": "shelfsense-book-chunks",
+    "cache_hit": false
+  }
 }
 ```
 
@@ -250,7 +292,7 @@ Try asking:
 
 ## Design Decisions
 
-* **Django REST** chosen for rapid API development and scalability
+* **Django REST** chosen for rapid API development and a structure **designed for scalability** (clear service boundaries, batch-friendly indexing)
 * **ChromaDB** used for lightweight vector search
 * **Sentence Transformers** for efficient embeddings
 * **Next.js** for fast and responsive UI
@@ -263,6 +305,16 @@ Try asking:
 * Used lightweight models for faster inference over heavy models
 * Focused on clarity and modularity instead of over-engineering
 * Prioritized working RAG pipeline over complex UI features
+
+---
+
+## System limitations
+
+These boundaries are intentional for the assignment scope and keep expectations aligned with what the repository ships.
+
+* **LLM dependency:** Insight generation and RAG answers call a **local or remote LLM** (for example via LM Studio or Ollama) using settings in `backend/.env`. If that endpoint is down or misconfigured, answers may fall back to safe defaults while the rest of the API stays up.
+* **Single-worker pipeline:** Background work uses **`python manage.py run_worker`** polling the database—not a distributed queue. Throughput is **one job at a time** per worker process; horizontal scaling would require additional infrastructure beyond this codebase.
+* **Demo data source:** Ingestion is built around **[books.toscrape.com](https://books.toscrape.com/)**—a small, static catalog useful for demos and tests, not a stand-in for a large commercial book dataset.
 
 ---
 
@@ -298,7 +350,7 @@ This project was built with a focus on **clarity, functionality, and real-world 
 The goal was to design a system that is:
 
 * Easy to understand
-* Efficient to run
-* Practical to scale
+* Efficient to run on a developer machine
+* Straightforward to extend with additional data sources, workers, or deployment tooling as requirements grow
 
 ---
