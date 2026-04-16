@@ -11,7 +11,14 @@ logger = logging.getLogger(__name__)
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-local-env")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
-ALLOWED_HOSTS = [host for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost","shelfsense-ai-rwke.onrender.com").split(",") if host]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "127.0.0.1,localhost,shelfsense-ai-rwke.onrender.com",
+    ).split(",")
+    if host.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
