@@ -6,9 +6,6 @@ from pathlib import Path
 from typing import Any
 from django.utils import timezone
 
-import chromadb
-from sentence_transformers import SentenceTransformer
-
 from books.models import Book, BookChunk, IngestionStatus
 from insights.llm import LocalLLMClient, LocalLLMError
 from .models import RagChatHistory, RagQueryCache
@@ -16,6 +13,9 @@ from .models import RagChatHistory, RagQueryCache
 
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "shelfsense-book-chunks")
+
+# Lazy-loaded to prevent blocking app startup
+_embedding_model_instance = None
 
 
 def _embedding_to_list(raw: Any) -> list:
@@ -27,7 +27,7 @@ def _embedding_to_list(raw: Any) -> list:
     return list(raw)
 
 
-def _encode_many(model: SentenceTransformer, contents: list[str]) -> list[list[float]]:
+def _encode_many(model: Any, contents: list[str]) -> list[list[float]]:
     """Batch-encode chunk texts; returns one embedding vector per input row."""
     if not contents:
         return []
@@ -276,13 +276,18 @@ def _context_block(context_items: list[dict[str, Any]]) -> str:
     )
 
 
-def _embedding_model() -> SentenceTransformer:
-    if not hasattr(_embedding_model, "_cache"):
-        setattr(_embedding_model, "_cache", SentenceTransformer(EMBEDDING_MODEL_NAME))
-    return getattr(_embedding_model, "_cache")
+def _embedding_model() -> Any:
+    global _embedding_model_instance
+    if _embedding_model_instance is None:
+        from sentence_transformers import SentenceTransformer
+
+        _embedding_model_instance = SentenceTransformer(EMBEDDING_MODEL_NAME)
+    return _embedding_model_instance
 
 
-def _collection():
+def _collection() -> Any:
+    import chromadb
+
     persist_path = Path(os.getenv("CHROMA_PERSIST_DIR", "backend/.chroma")).resolve()
     client = chromadb.PersistentClient(path=str(persist_path))
     return client.get_or_create_collection(name=CHROMA_COLLECTION_NAME, metadata={"hnsw:space": "cosine"})

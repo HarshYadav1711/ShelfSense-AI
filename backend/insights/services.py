@@ -9,7 +9,7 @@ from django.db import transaction
 
 from books.models import Book, BookInsight, IngestionStatus
 
-from .llm import LocalLLMClient, LocalLLMError
+from .llm import LocalLLMError
 
 _LEGACY_SUMMARY_FP = re.compile(r"^\[fp:([a-f0-9]+)\] (.*)$", re.DOTALL)
 
@@ -17,12 +17,19 @@ _LEGACY_SUMMARY_FP = re.compile(r"^\[fp:([a-f0-9]+)\] (.*)$", re.DOTALL)
 INSIGHT_TYPES = ("summary", "genre", "recommendation", "sentiment")
 
 
+def _local_llm_client():
+    # Lazy-loaded to prevent blocking app startup
+    from .llm import LocalLLMClient
+
+    return LocalLLMClient()
+
+
 def generate_insights_for_books(limit: int = 10) -> dict[str, int]:
     books = Book.objects.filter(ingestion_status=IngestionStatus.COMPLETED).order_by("-updated_at")[:limit]
     generated = 0
     skipped = 0
 
-    llm = LocalLLMClient()
+    llm = _local_llm_client()
     for book in books:
         if _is_insight_cache_fresh(book):
             skipped += 1
@@ -35,7 +42,7 @@ def generate_insights_for_books(limit: int = 10) -> dict[str, int]:
     return {"generated": generated, "skipped": skipped}
 
 
-def _build_insight_payload(book: Book, llm: LocalLLMClient) -> dict[str, str]:
+def _build_insight_payload(book: Book, llm: Any) -> dict[str, str]:
     prompt = (
         "Return valid JSON with keys summary, genre, recommendation, sentiment.\n"
         "Keep each value short, factual, and grounded in the provided book data.\n"
